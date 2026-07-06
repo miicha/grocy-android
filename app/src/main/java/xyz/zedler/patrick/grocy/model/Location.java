@@ -48,6 +48,7 @@ import xyz.zedler.patrick.grocy.helper.DownloadHelper.OnErrorListener;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper.OnMultiTypeErrorListener;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper.OnObjectsResponseListener;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper.OnStringResponseListener;
+import xyz.zedler.patrick.grocy.util.NumUtil;
 import xyz.zedler.patrick.grocy.web.NetworkQueue.QueueItem;
 
 @Entity(tableName = "location_table")
@@ -78,6 +79,11 @@ public class Location implements Parcelable {
   @SerializedName("is_freezer")
   private String isFreezer;
 
+  // FORK (sublocations): only sent by the grocy server fork, null on vanilla servers
+  @ColumnInfo(name = "parent_location_id")
+  @SerializedName("parent_location_id")
+  private String parentLocationId;
+
   public Location(int id, String name) {
     this.id = id;
     this.name = name;
@@ -90,6 +96,7 @@ public class Location implements Parcelable {
     userfields = Converters.stringToMap(parcel.readString());
     rowCreatedTimestamp = parcel.readString();
     isFreezer = parcel.readString();
+    parentLocationId = parcel.readString();
   }
 
   @Override
@@ -100,6 +107,7 @@ public class Location implements Parcelable {
     dest.writeString(Converters.mapToString(userfields));
     dest.writeString(rowCreatedTimestamp);
     dest.writeString(isFreezer);
+    dest.writeString(parentLocationId);
   }
 
   public static final Creator<Location> CREATOR = new Creator<>() {
@@ -167,6 +175,22 @@ public class Location implements Parcelable {
     this.isFreezer = isFreezer;
   }
 
+  public String getParentLocationId() {
+    return parentLocationId;
+  }
+
+  public int getParentLocationIdInt() {
+    return NumUtil.isStringInt(parentLocationId) ? Integer.parseInt(parentLocationId) : -1;
+  }
+
+  public boolean hasParentLocation() {
+    return NumUtil.isStringInt(parentLocationId);
+  }
+
+  public void setParentLocationId(String parentLocationId) {
+    this.parentLocationId = parentLocationId;
+  }
+
   @Override
   public int describeContents() {
     return 0;
@@ -185,12 +209,13 @@ public class Location implements Parcelable {
         Objects.equals(isFreezer, location.isFreezer) &&
         Objects.equals(name, location.name) &&
         Objects.equals(description, location.description) &&
-        Objects.equals(rowCreatedTimestamp, location.rowCreatedTimestamp);
+        Objects.equals(rowCreatedTimestamp, location.rowCreatedTimestamp) &&
+        Objects.equals(parentLocationId, location.parentLocationId);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, description, rowCreatedTimestamp, isFreezer);
+    return Objects.hash(id, name, description, rowCreatedTimestamp, isFreezer, parentLocationId);
   }
 
   public static Location getFromId(List<Location> locations, int id) {

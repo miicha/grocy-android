@@ -31,8 +31,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
+import java.util.HashMap;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.model.Location;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.ResUtil;
 import xyz.zedler.patrick.grocy.util.ViewUtil;
 
@@ -41,6 +43,7 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.ViewHo
   private final static String TAG = LocationAdapter.class.getSimpleName();
 
   private final ArrayList<Location> locations;
+  private final HashMap<Integer, Location> locationsById;
   private final int selectedId;
   private final LocationAdapterListener listener;
 
@@ -50,6 +53,7 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.ViewHo
       LocationAdapterListener listener
   ) {
     this.locations = locations;
+    this.locationsById = LocationHierarchyUtil.getLocationsById(locations);
     this.selectedId = selectedId;
     this.listener = listener;
   }
@@ -91,9 +95,9 @@ public class LocationAdapter extends RecyclerView.Adapter<LocationAdapter.ViewHo
     Location location = locations.get(holder.getAdapterPosition());
     if (location == null) return;
 
-    // NAME
+    // NAME (FORK sublocations: full path, equals plain name on vanilla servers)
 
-    holder.textViewName.setText(location.getName());
+    holder.textViewName.setText(LocationHierarchyUtil.getPath(location, locationsById));
 
     // SELECTED
 

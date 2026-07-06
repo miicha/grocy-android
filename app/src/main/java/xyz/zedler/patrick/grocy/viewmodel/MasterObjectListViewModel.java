@@ -56,6 +56,7 @@ import xyz.zedler.patrick.grocy.model.TaskCategory;
 import xyz.zedler.patrick.grocy.model.Userfield;
 import xyz.zedler.patrick.grocy.repository.MasterObjectListRepository;
 import xyz.zedler.patrick.grocy.util.ArrayUtil;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
 import xyz.zedler.patrick.grocy.util.ObjectUtil;
 import xyz.zedler.patrick.grocy.util.SortUtil;
@@ -244,7 +245,18 @@ public class MasterObjectListViewModel extends BaseViewModel {
     String sortMode = filterChipLiveDataSort.getSortMode();
     boolean isAscending = filterChipLiveDataSort.isSortAscending();
     if (sortMode.equals(SORT_NAME)) {
-      SortUtil.sortObjectsByName(objects, entity, isAscending);
+      if (entity.equals(GrocyApi.ENTITY.LOCATIONS)) {
+        // FORK (sublocations): keep sublocations below their parents
+        ArrayList<Location> sortedLocations = new ArrayList<>();
+        for (Object object : objects) {
+          sortedLocations.add((Location) object);
+        }
+        LocationHierarchyUtil.sortLocationsByPath(sortedLocations, isAscending);
+        objects.clear();
+        objects.addAll(sortedLocations);
+      } else {
+        SortUtil.sortObjectsByName(objects, entity, isAscending);
+      }
     } else if (sortMode.equals(SORT_CREATED_TIMESTAMP)) {
       SortUtil.sortObjectsByCreatedTimestamp(objects, entity, isAscending);
     } else if (sortMode.startsWith(Userfield.NAME_PREFIX)) {

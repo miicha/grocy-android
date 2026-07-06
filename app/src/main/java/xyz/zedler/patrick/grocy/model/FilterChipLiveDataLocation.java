@@ -24,8 +24,9 @@ import android.app.Application;
 import androidx.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 import xyz.zedler.patrick.grocy.R;
-import xyz.zedler.patrick.grocy.util.SortUtil;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 
 public class FilterChipLiveDataLocation extends FilterChipLiveData {
 
@@ -63,7 +64,8 @@ public class FilterChipLiveDataLocation extends FilterChipLiveData {
   }
 
   public void setLocations(List<Location> locations) {
-    SortUtil.sortLocationsByName(locations, true);
+    LocationHierarchyUtil.sortLocationsByPath(locations, true);
+    HashMap<Integer, Location> locationsById = LocationHierarchyUtil.getLocationsById(locations);
     ArrayList<MenuItemData> menuItemDataList = new ArrayList<>();
     menuItemDataList.add(new MenuItemData(
         NO_FILTER,
@@ -71,7 +73,9 @@ public class FilterChipLiveDataLocation extends FilterChipLiveData {
         application.getString(R.string.action_no_filter)
     ));
     for (Location location : locations) {
-      menuItemDataList.add(new MenuItemData(location.getId(), 0, location.getName()));
+      menuItemDataList.add(new MenuItemData(
+          location.getId(), 0, LocationHierarchyUtil.getPath(location, locationsById)
+      ));
     }
     setMenuItemDataList(menuItemDataList);
     setMenuItemGroups(new MenuItemGroup(0, true, true));

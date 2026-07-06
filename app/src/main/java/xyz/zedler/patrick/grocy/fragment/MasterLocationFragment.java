@@ -40,6 +40,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.util.ArrayList;
+import java.util.Set;
 import org.json.JSONException;
 import org.json.JSONObject;
 import xyz.zedler.patrick.grocy.Constants;
@@ -49,10 +50,13 @@ import xyz.zedler.patrick.grocy.activity.MainActivity;
 import xyz.zedler.patrick.grocy.api.GrocyApi;
 import xyz.zedler.patrick.grocy.behavior.SystemBarBehavior;
 import xyz.zedler.patrick.grocy.databinding.FragmentMasterLocationBinding;
+import xyz.zedler.patrick.grocy.fragment.bottomSheetDialog.LocationsBottomSheet;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.model.Location;
 import xyz.zedler.patrick.grocy.util.BindingAdaptersUtil;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
+import xyz.zedler.patrick.grocy.util.VersionUtil;
 import xyz.zedler.patrick.grocy.util.ViewUtil;
 
 public class MasterLocationFragment extends BaseFragment {
@@ -75,6 +79,9 @@ public class MasterLocationFragment extends BaseFragment {
 
   private boolean isRefresh;
   private boolean debug;
+  // FORK (sublocations)
+  private boolean isSublocFork;
+  private int parentLocationId = -1;
 
   @Override
   public View onCreateView(
@@ -171,6 +178,16 @@ public class MasterLocationFragment extends BaseFragment {
       );
     });
 
+    // parent location (FORK sublocations, only available against the server fork)
+    isSublocFork = VersionUtil.isGrocyServerSublocFork(sharedPrefs);
+    if (isSublocFork) {
+      binding.linearMasterLocationParent.setVisibility(View.VISIBLE);
+      binding.linearMasterLocationParent.setOnClickListener(v -> {
+        ViewUtil.startIcon(binding.imageMasterLocationParent);
+        showParentLocationsBottomSheet();
+      });
+    }
+
     args = MasterLocationFragmentArgs.fromBundle(requireArguments());
     editLocation = args.getLocation();
     if (editLocation != null && savedInstanceState == null) {
@@ -231,6 +248,7 @@ public class MasterLocationFragment extends BaseFragment {
     outState.putParcelable("editLocation", editLocation);
 
     outState.putBoolean("isRefresh", isRefresh);
+    outState.putInt("parentLocationId", parentLocationId);
   }
 
   private void restoreSavedInstanceState(@NonNull Bundle savedInstanceState) {
@@ -245,6 +263,9 @@ public class MasterLocationFragment extends BaseFragment {
 
     isRefresh = savedInstanceState.getBoolean("isRefresh");
     binding.swipeMasterLocation.setRefreshing(false);
+
+    parentLocationId = savedInstanceState.getInt("parentLocationId", -1);
+    updateParentLocationText();
 
     updateEditReferences();
 
@@ -309,6 +330,9 @@ public class MasterLocationFragment extends BaseFragment {
 
           if (isRefresh && editLocation != null) {
             fillWithEditReferences();
+          } else {
+            // parent path can only be resolved once locations are loaded
+            updateParentLocationText();
           }
         },
         error -> {
@@ -366,7 +390,49 @@ public class MasterLocationFragment extends BaseFragment {
       binding.editTextMasterLocationDescription.setText(editLocation.getDescription());
       // is freezer
       binding.checkboxMasterLocationFreezer.setChecked(editLocation.getIsFreezerInt() == 1);
+      // parent location (FORK sublocations)
+      parentLocationId = editLocation.getParentLocationIdInt();
+      updateParentLocationText();
     }
+  }
+
+  private void updateParentLocationText() {
+    Location parent = locations != null && parentLocationId != -1
+        ? getLocation(parentLocationId)
+        : null;
+    binding.textMasterLocationParent.setText(
+        parent != null
+            ? LocationHierarchyUtil.getPath(parent, locations)
+            : getString(R.string.subtitle_none_selected)
+    );
+  }
+
+  private void showParentLocationsBottomSheet() {
+    if (locations == null) {
+      return;
+    }
+    ArrayList<Location> selectableLocations = new ArrayList<>();
+    // the location itself and its descendants can't be its parent (server rejects cycles)
+    Set<Integer> excludedIds = editLocation != null
+        ? LocationHierarchyUtil.getLocationIdsIncludingSub(locations, editLocation.getId())
+        : null;
+    for (Location location : locations) {
+      if (excludedIds == null || !excludedIds.contains(location.getId())) {
+        selectableLocations.add(location);
+      }
+    }
+    Bundle bundle = new Bundle();
+    bundle.putParcelableArrayList(ARGUMENT.LOCATIONS, selectableLocations);
+    bundle.putInt(ARGUMENT.SELECTED_ID, parentLocationId);
+    bundle.putBoolean(ARGUMENT.DISPLAY_EMPTY_OPTION, true);
+    bundle.putString(ARGUMENT.TITLE, getString(R.string.property_parent_location));
+    activity.showBottomSheet(new LocationsBottomSheet(), bundle);
+  }
+
+  @Override
+  public void selectLocation(Location location) {
+    parentLocationId = location != null ? location.getId() : -1;
+    updateParentLocationText();
   }
 
   private void clearInputFocusAndErrors() {
@@ -393,6 +459,14 @@ public class MasterLocationFragment extends BaseFragment {
           "description", (description != null ? description : "").toString().trim()
       );
       jsonObject.put("is_freezer", binding.checkboxMasterLocationFreezer.isChecked());
+      if (isSublocFork) {
+        // FORK (sublocations): vanilla servers have no such column, so only send it
+        // against the fork; "" is normalized to NULL server-side
+        jsonObject.put(
+            "parent_location_id",
+            parentLocationId != -1 ? String.valueOf(parentLocationId) : ""
+        );
+      }
     } catch (JSONException e) {
       if (debug) {
         Log.e(TAG, "saveLocation: " + e);
@@ -448,7 +522,7 @@ public class MasterLocationFragment extends BaseFragment {
     if (name.isEmpty()) {
       binding.textInputMasterLocationName.setError(activity.getString(R.string.error_empty));
       isInvalid = true;
-    } else if (!locationNames.isEmpty() && locationNames.contains(name)) {
+    } else if (isNameDuplicate(name)) {
       binding.textInputMasterLocationName.setError(
           activity.getString(R.string.error_duplicate)
       );
@@ -456,6 +530,26 @@ public class MasterLocationFragment extends BaseFragment {
     }
 
     return isInvalid;
+  }
+
+  private boolean isNameDuplicate(String name) {
+    if (!isSublocFork) {
+      return !locationNames.isEmpty() && locationNames.contains(name);
+    }
+    // FORK (sublocations): names only have to be unique below the same parent
+    if (locations == null) {
+      return false;
+    }
+    for (Location location : locations) {
+      if (editLocation != null && location.getId() == editLocation.getId()) {
+        continue;
+      }
+      if (location.getParentLocationIdInt() == parentLocationId
+          && location.getName().trim().equals(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void resetAll() {
@@ -466,6 +560,8 @@ public class MasterLocationFragment extends BaseFragment {
     binding.editTextMasterLocationName.setText(null);
     binding.editTextMasterLocationDescription.setText(null);
     binding.checkboxMasterLocationFreezer.setChecked(false);
+    parentLocationId = -1;
+    updateParentLocationText();
   }
 
   @Override

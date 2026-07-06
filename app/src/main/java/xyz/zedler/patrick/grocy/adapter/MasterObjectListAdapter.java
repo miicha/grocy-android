@@ -31,9 +31,12 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.load.model.LazyHeaders;
 import java.util.ArrayList;
+import java.util.HashMap;
 import xyz.zedler.patrick.grocy.api.GrocyApi;
 import xyz.zedler.patrick.grocy.databinding.RowMasterItemBinding;
+import xyz.zedler.patrick.grocy.model.Location;
 import xyz.zedler.patrick.grocy.model.Product;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.ObjectUtil;
 import xyz.zedler.patrick.grocy.util.PictureUtil;
 import xyz.zedler.patrick.grocy.web.RequestHeaders;
@@ -49,6 +52,7 @@ public class MasterObjectListAdapter extends
   private final GrocyApi grocyApi;
   private final LazyHeaders grocyAuthHeaders;
   private boolean containsPictures;
+  private final HashMap<Integer, Location> locationsById = new HashMap<>();
 
   public MasterObjectListAdapter(
       Context context,
@@ -87,8 +91,14 @@ public class MasterObjectListAdapter extends
   public void onBindViewHolder(@NonNull final ViewHolder holder, int position) {
     Object object = objects.get(holder.getAdapterPosition());
 
-    // NAME
-    holder.binding.textMasterItemName.setText(ObjectUtil.getObjectName(object, entity));
+    // NAME (FORK sublocations: locations show their full path)
+    if (entity.equals(GrocyApi.ENTITY.LOCATIONS) && object instanceof Location) {
+      holder.binding.textMasterItemName.setText(
+          LocationHierarchyUtil.getPath((Location) object, locationsById)
+      );
+    } else {
+      holder.binding.textMasterItemName.setText(ObjectUtil.getObjectName(object, entity));
+    }
 
     // PICTURE
     String pictureFileName = entity.equals(GrocyApi.ENTITY.PRODUCTS)
@@ -125,6 +135,13 @@ public class MasterObjectListAdapter extends
         this.objects,
         entity
     );
+
+    locationsById.clear();
+    for (Object object : newObjects) {
+      if (object instanceof Location) {
+        locationsById.put(((Location) object).getId(), (Location) object);
+      }
+    }
 
     containsPictures = false;
     for (Object object : newObjects) {

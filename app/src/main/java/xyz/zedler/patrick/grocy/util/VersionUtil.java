@@ -39,6 +39,14 @@ public class VersionUtil {
   public final static String SERVER_3_3_1 = "3.3.1";
   public final static String SERVER_4_0_0 = "4.0.0";
 
+  // FORK (sublocations): the server fork reports e.g. "4.6.0-subloc"
+  public final static String FORK_SUFFIX_SUBLOCATIONS = "-subloc";
+
+  public static boolean isGrocyServerSublocFork(SharedPreferences prefs) {
+    String current = prefs.getString(PREF.GROCY_VERSION, null);
+    return current != null && current.contains(FORK_SUFFIX_SUBLOCATIONS);
+  }
+
   public static boolean isGrocyServerMin320(SharedPreferences prefs) {
     return isGrocyThisVersionOrHigher(prefs, SERVER_3_2_0);
   }
@@ -112,6 +120,11 @@ public class VersionUtil {
     public Version(String version) {
       if(version == null)
         throw new IllegalArgumentException("Version can not be null");
+      // FORK (sublocations): tolerate fork suffixes like "4.6.0-subloc" —
+      // without this, min-version gates would be skipped entirely on fork servers
+      int suffixStart = version.indexOf('-');
+      if(suffixStart > 0)
+        version = version.substring(0, suffixStart);
       if(!version.matches("[0-9]+(\\.[0-9]+)*"))
         throw new IllegalArgumentException("Invalid version format");
       this.version = version;

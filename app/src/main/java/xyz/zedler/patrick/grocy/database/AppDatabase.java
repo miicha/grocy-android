@@ -139,7 +139,8 @@ import xyz.zedler.patrick.grocy.repository.MainRepository.OnVersionListener;
     views = {
         RecipeNestingResolved.class
     },
-    version = 54
+    // FORK (sublocations): 55 = parent_location_id on location_table
+    version = 55
 )
 @TypeConverters({Converters.class})
 public abstract class AppDatabase extends RoomDatabase {

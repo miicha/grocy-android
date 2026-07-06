@@ -973,6 +973,8 @@
   <string name="property_opened">opened</string>
   <string name="property_not_opened">not opened</string>
   <string name="property_is_freezer">Is freezer</string>
+  <!-- FORK (sublocations): hierarchical locations of the grocy server fork -->
+  <string name="property_parent_location">Parent location</string>
   <!-- Means energy of an ingredient or product -->
   <string name="property_energy_only">Energy</string>
   <!-- %1$s is a unit for energy, like kcal (kilo calories) -->

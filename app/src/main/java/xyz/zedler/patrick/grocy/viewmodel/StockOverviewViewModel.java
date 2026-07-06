@@ -30,8 +30,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.BoundExtractedResult;
 import org.json.JSONException;
@@ -75,6 +77,7 @@ import xyz.zedler.patrick.grocy.repository.StockOverviewRepository;
 import xyz.zedler.patrick.grocy.util.ArrayUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil.Grocycode;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
 import xyz.zedler.patrick.grocy.util.PluralUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
@@ -349,6 +352,13 @@ public class StockOverviewViewModel extends BaseViewModel {
       }
     }
 
+    // FORK (sublocations): filtering by a location includes all of its sublocations
+    int locationFilterId = filterChipLiveDataLocation.getSelectedId();
+    Set<Integer> locationFilterIds = locationFilterId != FilterChipLiveDataLocation.NO_FILTER
+        ? LocationHierarchyUtil.getLocationIdsIncludingSub(
+            new ArrayList<>(locationHashMap.values()), locationFilterId)
+        : null;
+
     for (StockItem item : this.stockItems) {
       if (item.getProduct() == null) {
         // invalidate products and stock items offline cache because products may have changed
@@ -391,12 +401,11 @@ public class StockOverviewViewModel extends BaseViewModel {
       ) {
         continue;
       }
-      int locationFilterId = filterChipLiveDataLocation.getSelectedId();
-      if (locationFilterId != FilterChipLiveDataLocation.NO_FILTER) {
+      if (locationFilterIds != null) {
         HashMap<Integer, StockLocation> stockLocationsForProductId
             = stockLocationsHashMap.get(item.getProductId());
         if (stockLocationsForProductId == null
-            || !stockLocationsForProductId.containsKey(locationFilterId)
+            || Collections.disjoint(stockLocationsForProductId.keySet(), locationFilterIds)
         ) {
           continue;
         }
