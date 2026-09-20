@@ -39,8 +39,9 @@ android {
         applicationId = "xyz.zedler.patrick.grocy.subloc"
         minSdk = 23
         targetSdk = 37
-        versionCode = 65
-        versionName = "3.9.0"
+        // <upstream versionCode>00 + fork revision, see FORK.md
+        versionCode = 6501
+        versionName = "3.9.0-subloc1"
         resourceConfigurations += ['ca', 'cs', 'de', 'en', 'es', 'et', 'fr', 'hu', 'it', 'iw', 'ja',
                                    'nb', 'nl', 'pl', 'pt-rBR', 'pt-rPT', 'ru', 'sk', 'sv', 'uk',
                                    'zh-rCN', 'zh-rTW']

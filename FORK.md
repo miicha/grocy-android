@@ -67,7 +67,10 @@ and attaches them to a GitHub release as
 instance). It needs the repository secrets `SIGNING_KEYSTORE_BASE64`,
 `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`.
 Bump `versionCode`/`versionName` in `app/build.gradle` per release, otherwise
-Android refuses the update.
+Android refuses the update. The fork numbers them as the upstream version
+plus a fork revision: upstream `65` / `3.9.0` becomes `6501` /
+`3.9.0-subloc1`, the next fork release on the same upstream base is `6502`,
+and an upstream merge to `3.10.0` (`66`) restarts at `6601`.
 
 Upstream's `android-nightly.yml` is deleted on this branch: running in this
 repo it would build the upstream `master` and `feature/mlkit_scanner`
