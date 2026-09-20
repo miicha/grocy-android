@@ -23,12 +23,20 @@ plugins {
     alias(libs.plugins.navigation.safeargs)
 }
 
+// Release signing is configured through keystore.properties (not in VCS, see
+// keystore.properties.example). Without it the release build stays unsigned.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace = 'xyz.zedler.patrick.grocy'
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "xyz.zedler.patrick.grocy"
+        applicationId = "xyz.zedler.patrick.grocy.subloc"
         minSdk = 23
         targetSdk = 37
         versionCode = 65
@@ -43,14 +51,43 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    // One installable app per grocy instance: same code, different
+    // applicationId, so Android keeps separate data dirs and both can be
+    // logged in at the same time. A flavor must not be called 'main'
+    // (reserved source set name), hence 'home'.
+    flavorDimensions = ['instance']
+    productFlavors {
+        home {
+            dimension = 'instance'
+        }
+        holiday {
+            dimension = 'instance'
+            applicationIdSuffix = '.holiday'
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.release
+            }
             minifyEnabled = true
             shrinkResources = true
-            proguardFiles {
-                getDefaultProguardFile('proguard-android-optimize.txt')
-                'proguard-rules.pro'
-            }
+            // Upstream passes these as a closure, which silently applies no
+            // rule file at all and makes every release build fail in R8.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                    'proguard-rules.pro'
             debuggable = false
         }
         debug {

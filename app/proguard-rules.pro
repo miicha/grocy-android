@@ -61,3 +61,6 @@
 # Only has effected these pre-KitKat two compatibility classes
 -dontwarn com.android.org.conscrypt.SSLParametersImpl
 -dontwarn org.apache.harmony.xnet.provider.jsse.SSLParametersImpl
+
+# The calendar library carries Compose annotations, but the app has no Compose
+-dontwarn androidx.compose.runtime.Immutable
