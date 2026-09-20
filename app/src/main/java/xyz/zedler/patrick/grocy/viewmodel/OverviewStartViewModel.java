@@ -37,6 +37,7 @@ import xyz.zedler.patrick.grocy.Constants.PREF;
 import xyz.zedler.patrick.grocy.Constants.SETTINGS.STOCK;
 import xyz.zedler.patrick.grocy.Constants.SETTINGS_DEFAULT;
 import xyz.zedler.patrick.grocy.R;
+import xyz.zedler.patrick.grocy.database.AppDatabase;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.model.ChoreEntry;
 import xyz.zedler.patrick.grocy.model.MissingItem;
@@ -97,6 +98,9 @@ public class OverviewStartViewModel extends BaseViewModel {
   private final LiveData<String> masterDataDescriptionTextLive;
   private final MutableLiveData<Integer> currentUserIdLive;
   private List<ShoppingList> shoppingLists;
+  // FORK (offline inventory)
+  private final LiveData<Boolean> pendingStockCountsOnDevice;
+
   private boolean alreadyLoadedFromDatabase;
 
   public OverviewStartViewModel(@NonNull Application application) {
@@ -121,6 +125,11 @@ public class OverviewStartViewModel extends BaseViewModel {
     itemsInStockCountLive = new MutableLiveData<>();
     stockValueLive = new MutableLiveData<>();
     storedPurchasesOnDevice = new MutableLiveData<>(false);
+    // FORK (offline inventory): banner linking to the counts that still have to be transferred
+    pendingStockCountsOnDevice = Transformations.map(
+        AppDatabase.getAppDatabase(application).pendingStockCountDao().getCountLive(),
+        count -> count != null && count > 0
+    );
     shoppingListItemsLive = new MutableLiveData<>();
     productsLive = new MutableLiveData<>();
     recipesLive = new MutableLiveData<>();
@@ -608,6 +617,11 @@ public class OverviewStartViewModel extends BaseViewModel {
 
   public MutableLiveData<Boolean> getStoredPurchasesOnDevice() {
     return storedPurchasesOnDevice;
+  }
+
+  /** FORK (offline inventory) */
+  public LiveData<Boolean> getPendingStockCountsOnDevice() {
+    return pendingStockCountsOnDevice;
   }
 
   public boolean isAlreadyLoadedFromDatabase() {

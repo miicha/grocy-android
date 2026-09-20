@@ -1043,6 +1043,16 @@
       android:id="@+id/action_storedPurchasesFragment_to_purchaseFragment"
       app:destination="@id/purchaseFragment" />
   </fragment>
+  <!-- FORK (offline inventory) -->
+  <fragment
+    android:id="@+id/pendingStockCountsFragment"
+    android:label="PendingStockCountsFragment"
+    android:name="xyz.zedler.patrick.grocy.fragment.PendingStockCountsFragment"
+    tools:layout="@layout/fragment_pending_stock_counts">
+    <deepLink
+      android:id="@+id/deepLink21"
+      app:uri="@string/deep_link_pendingStockCountsFragment" />
+  </fragment>
   <fragment
     android:id="@+id/taskEntryEditFragment"
     android:label="TaskEntryEditFragment"

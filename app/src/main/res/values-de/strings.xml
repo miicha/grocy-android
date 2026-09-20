@@ -329,6 +329,34 @@
   <string name="msg_recipe_added_to_cart">Fehlende Produkte wurden auf den Einkaufszettel gesetzt</string>
   <string name="msg_recipe_consumed">Alle Zutaten, die vom Rezept \"%1$s\" benötigt werden, wurden aus dem Bestand entfernt</string>
   <string name="msg_stored_purchases_overview">Es gibt Einkäufe auf dem Gerät, welche noch nicht auf den Server übertragen wurden. Hier tippen für Details.</string>
+  <!-- FORK (offline inventory) -->
+  <string name="msg_pending_stock_counts_overview">Auf dem Gerät liegen Zählungen, die noch nicht auf den Server übertragen wurden. Für Details hier tippen.</string>
+  <string name="msg_pending_stock_counts">Hier stehen Zählungen, die offline erfasst wurden. Inventuren speichern die gezählte Zielmenge, eine spätere Übertragung führt daher zum selben Ergebnis. Verbräuche speichern eine abzubuchende Menge und werden genau einmal gesendet.</string>
+  <string name="msg_pending_stock_counts_empty">Es warten keine Zählungen auf die Übertragung.</string>
+  <string name="msg_pending_stock_counts_discard_all">Alle noch nicht übertragenen Zählungen verwerfen? Das kann nicht rückgängig gemacht werden.</string>
+  <string name="msg_pending_stock_counts_discarded">Zählungen verworfen</string>
+  <string name="msg_pending_stock_counts_offline_mode">Der Offline-Modus ist noch aktiv. Zum Übertragen in den Einstellungen ausschalten.</string>
+  <string name="msg_pending_stock_counts_offline_hint">Der Offline-Modus ist aktiv, es kann gerade nichts an den Server gesendet werden.</string>
+  <string name="action_disable_offline_mode">Ausschalten</string>
+  <string name="msg_pending_stock_counts_partly_transferred">%1$s übertragen, %2$s fehlgeschlagen</string>
+  <plurals name="msg_pending_stock_counts_transferred">
+    <item quantity="one">%1$d Zählung übertragen</item>
+    <item quantity="other">%1$d Zählungen übertragen</item>
+  </plurals>
+  <string name="msg_offline_count_stored">Auf dem Gerät gespeichert</string>
+  <string name="msg_offline_mode_on">Offline-Modus an – Buchungen werden auf dem Gerät gespeichert</string>
+  <string name="msg_offline_mode_off">Offline-Modus aus</string>
+  <string name="msg_inventory_multiple_locations">Dieses Produkt liegt an %1$s Standorten. Eine Inventur setzt den Gesamtbestand über alle – für eine Korrektur an einem Standort den Verbrauch nutzen.</string>
+  <string name="msg_offline_barcode_discarded">Barcode nicht gespeichert – keine Serververbindung</string>
+  <string name="action_transfer_pending_counts">Übertragen</string>
+  <string name="action_discard_all">Alle verwerfen</string>
+  <string name="label_pending_count_inventory">Neuer Bestand: %1$s</string>
+  <string name="label_pending_count_consume">Verbrauch: %1$s</string>
+  <string name="label_pending_count_location">Standort: %1$s</string>
+  <string name="title_pending_stock_counts">Offline-Zählungen</string>
+  <string name="setting_offline_mode">Offline-Modus</string>
+  <string name="setting_offline_mode_description">Inventur und Verbrauch auf dem Gerät speichern statt zu senden. Für Zählungen an Orten ohne Verbindung.</string>
+
   <string name="msg_stored_purchases">Einkäufe, welche noch nicht auf den Server übertragen wurden, werden hier angezeigt. Sie wurden zusammen mit temporären Produkten in dieser App gespeichert, damit Sie Ihren Einkauf schneller im Schnellmodus erfassen konnten und Produkte nicht gleich in den Stammdaten erstellen mussten.</string>
   <string name="msg_stored_purchases_product_offline">Tippen Sie auf das Produkt und füllen Sie benötigte Daten aus. Danach wird das Produkt hier als online angezeigt und die gespeicherten Einkäufe können an den Server gesendet werden.</string>
   <string name="msg_stored_purchases_product_online">Hier tippen, um die gespeicherten Einkäufe für dieses Produkt an den Server zu senden.</string>

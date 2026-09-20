@@ -60,13 +60,17 @@ import xyz.zedler.patrick.grocy.model.ProductBarcode;
 import xyz.zedler.patrick.grocy.model.ProductDetails;
 import xyz.zedler.patrick.grocy.model.QuantityUnit;
 import xyz.zedler.patrick.grocy.model.QuantityUnitConversionResolved;
+import xyz.zedler.patrick.grocy.model.PendingStockCount;
 import xyz.zedler.patrick.grocy.model.SnackbarMessage;
+import xyz.zedler.patrick.grocy.model.StockItem;
+import xyz.zedler.patrick.grocy.model.StockLocation;
 import xyz.zedler.patrick.grocy.model.Store;
 import xyz.zedler.patrick.grocy.repository.InventoryRepository;
 import xyz.zedler.patrick.grocy.util.ArrayUtil;
 import xyz.zedler.patrick.grocy.util.DateUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil.Grocycode;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.util.QuantityUnitConversionUtil;
@@ -89,6 +93,10 @@ public class InventoryViewModel extends BaseViewModel {
   private List<Store> stores;
   private List<Location> locations;
   private HashMap<Integer, QuantityUnit> quantityUnitHashMap;
+  // FORK (offline inventory): cached stock and locations, so the form can be filled without server
+  private HashMap<Integer, StockItem> stockItemHashMap;
+  private HashMap<Integer, Location> locationHashMap;
+  private List<StockLocation> stockLocations;
 
   private final MutableLiveData<Boolean> isLoadingLive;
   private final MutableLiveData<InfoFullscreen> infoFullscreenLive;
@@ -96,6 +104,9 @@ public class InventoryViewModel extends BaseViewModel {
 
   private Runnable queueEmptyAction;
   private boolean productWillBeFilled;
+  // FORK (offline inventory): set when the form was filled from the cache, which means the
+  // booking has to go into the local queue even if connectivity looks fine again
+  private boolean productDetailsFromCache;
   private final int maxDecimalPlacesAmount;
   private final int decimalPlacesPriceInput;
 
@@ -146,6 +157,9 @@ public class InventoryViewModel extends BaseViewModel {
       this.unitConversions = data.getQuantityUnitConversionsResolved();
       this.stores = data.getStores();
       this.locations = data.getLocations();
+      this.stockItemHashMap = ArrayUtil.getStockItemHashMap(data.getStockItems());
+      this.locationHashMap = ArrayUtil.getLocationsHashMap(data.getLocations());
+      this.stockLocations = data.getStockLocations();
       formData.getProductsLive().setValue(Product.getActiveAndStockEnabledProductsOnly(products));
       if (downloadAfterLoading) {
         downloadData(false);
@@ -159,8 +173,14 @@ public class InventoryViewModel extends BaseViewModel {
   }
 
   public void downloadData(boolean forceUpdate) {
-    if (isOffline()) { // skip downloading
+    if (isOfflineModeActive()) { // skip downloading
       isLoadingLive.setValue(false);
+      // FORK (offline inventory): still run a pending action, otherwise a product passed in via
+      // arguments never gets filled in while offline
+      if (queueEmptyAction != null) {
+        queueEmptyAction.run();
+        queueEmptyAction = null;
+      }
       return;
     }
     dlHelper.updateData(
@@ -182,11 +202,14 @@ public class InventoryViewModel extends BaseViewModel {
         QuantityUnitConversionResolved.class,
         ProductBarcode.class,
         Store.class,
-        Location.class
+        Location.class,
+        // FORK (offline inventory): keep cached amounts fresh, the offline form reads them
+        StockItem.class
     );
   }
 
   public void setProduct(int productId, ProductBarcode barcode) {
+    productDetailsFromCache = false;
     OnObjectResponseListener<ProductDetails> listener = productDetails -> {
       Product updatedProduct = productDetails.getProduct();
       formData.getProductDetailsLive().setValue(productDetails);
@@ -263,14 +286,79 @@ public class InventoryViewModel extends BaseViewModel {
         if (isQuickModeEnabled()) {
             sendEvent(Event.FOCUS_INVALID_VIEWS);
         }
+      warnIfStoredAtMultipleLocations(updatedProduct.getId());
     };
 
+    // FORK (offline inventory): fill the form from the Room cache instead of asking the server,
+    // either because offline mode is on or because the request failed out in the field.
+    if (isOfflineModeActive()) {
+      if (!setProductFromCache(productId, listener)) {
+        showMessageAndContinueScanning(getString(R.string.error_no_product_details));
+      }
+      return;
+    }
     ProductDetails.getProductDetails(
         dlHelper,
         productId,
         listener,
-        error -> showMessageAndContinueScanning(getString(R.string.error_no_product_details))
+        error -> {
+          if (!setProductFromCache(productId, listener)) {
+            showMessageAndContinueScanning(getString(R.string.error_no_product_details));
+          }
+        }
     ).perform(dlHelper.getUuid());
+  }
+
+  /**
+   * FORK (offline inventory): an inventory booking sets the product's total amount across all
+   * locations — grocy has no per-location inventory. Counting a product that also lies elsewhere
+   * would wipe the stock at those other locations, so warn about it and point at consume, which
+   * does take a location.
+   */
+  private void warnIfStoredAtMultipleLocations(int productId) {
+    if (stockLocations == null) {
+      return;
+    }
+    int locationCount = 0;
+    for (StockLocation stockLocation : stockLocations) {
+      if (stockLocation.getProductId() == productId) {
+        locationCount++;
+      }
+    }
+    if (locationCount > 1) {
+      showMessage(getString(
+          R.string.msg_inventory_multiple_locations, String.valueOf(locationCount)
+      ));
+    }
+  }
+
+  /**
+   * FORK (offline inventory): assembles the product details from cached data. Returns false when
+   * the product is not in the cache, in which case the caller reports the usual error.
+   */
+  private boolean setProductFromCache(int productId, OnObjectResponseListener<ProductDetails> l) {
+    Product product = Product.getProductFromId(products, productId);
+    if (product == null) {
+      return false;
+    }
+    StockItem stockItem = stockItemHashMap != null ? stockItemHashMap.get(productId) : null;
+    Location location = locationHashMap != null
+        ? locationHashMap.get(product.getLocationIdInt()) : null;
+    QuantityUnit quStock = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdStockInt()) : null;
+    QuantityUnit quPurchase = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdPurchaseInt()) : null;
+    QuantityUnit quConsume = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdConsumeInt()) : null;
+    QuantityUnit quPrice = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdPriceInt()) : null;
+    // last price is deliberately left out: when "price" is absent from the request body the
+    // server falls back to the product's last price itself, which is the same result
+    productDetailsFromCache = true;
+    l.onResponse(ProductDetails.fromCache(
+        product, stockItem, location, quStock, quPurchase, quConsume, quPrice, null
+    ));
+    return true;
   }
 
   public void onBarcodeRecognized(String barcode) {
@@ -366,13 +454,25 @@ public class InventoryViewModel extends BaseViewModel {
       showMessage(R.string.error_missing_information);
       return;
     }
+    // FORK (offline inventory): a scanned barcode cannot be uploaded without a server. Drop it
+    // and book the count anyway — the barcode can be added later when back online.
     if (formData.getBarcodeLive().getValue() != null) {
-      uploadProductBarcode(this::inventoryProduct, false);
-      return;
+      if (isOfflineModeActive() || productDetailsFromCache) {
+        formData.getBarcodeLive().setValue(null);
+        showMessage(R.string.msg_offline_barcode_discarded);
+      } else {
+        uploadProductBarcode(this::inventoryProduct, false);
+        return;
+      }
     }
 
     Product product = formData.getProductDetailsLive().getValue().getProduct();
     JSONObject body = formData.getFilledJSONObject();
+
+    if (isOfflineModeActive() || productDetailsFromCache) {
+      storeInventoryOffline(product, body);
+      return;
+    }
     dlHelper.postWithArray(
         grocyApi.inventoryProduct(product.getId()),
         body,
@@ -415,6 +515,49 @@ public class InventoryViewModel extends BaseViewModel {
                 Log.i(TAG, "inventoryProduct: " + error);
             }
         }
+    );
+  }
+
+  /**
+   * FORK (offline inventory): true while bookings must not go to the server — either the user
+   * switched offline mode on deliberately or the last refresh failed.
+   */
+  public boolean isOfflineModeActive() {
+    return isOffline() || sharedPrefs.getBoolean(
+        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
+        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
+    );
+  }
+
+  /**
+   * FORK (offline inventory): puts the booking into the local queue. The body is frozen as it
+   * would have been posted; because the inventory endpoint takes an absolute new_amount, sending
+   * it later yields the same end state regardless of order.
+   */
+  private void storeInventoryOffline(Product product, JSONObject body) {
+    PendingStockCount count = new PendingStockCount();
+    count.setAction(PendingStockCount.ACTION_INVENTORY);
+    count.setProductId(product.getId());
+    count.setProductName(product.getName());
+    count.setAmount(body.optString("new_amount", null));
+    QuantityUnit quStock = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdStockInt()) : null;
+    count.setQuantityUnitName(quStock != null ? quStock.getName() : null);
+    count.setLocationName(
+        LocationHierarchyUtil.getPath(formData.getLocationLive().getValue(), locations)
+    );
+    count.setBody(body.toString());
+    count.setCreatedAt(System.currentTimeMillis());
+    repository.insertPendingStockCount(
+        count,
+        id -> {
+          if (debug) {
+            Log.i(TAG, "storeInventoryOffline: queued " + count);
+          }
+          showSnackbar(new SnackbarMessage(getString(R.string.msg_offline_count_stored)));
+          sendEvent(Event.TRANSACTION_SUCCESS);
+        },
+        () -> showMessage(R.string.error_undefined)
     );
   }
 

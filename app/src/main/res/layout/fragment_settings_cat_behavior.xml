@@ -397,6 +397,37 @@
 
           </LinearLayout>
 
+          <!-- FORK (offline inventory) -->
+          <LinearLayout
+            style="@style/Widget.Grocy.LinearLayout.ListItem.TwoLine.Clickable.More"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="@{v -> switchOfflineMode.setChecked(!switchOfflineMode.isChecked())}">
+
+            <ImageView
+              style="@style/Widget.Grocy.ImageView.ListItem.Icon"
+              tools:ignore="ContentDescription"
+              android:src="@drawable/ic_round_cloud_pending" />
+
+            <LinearLayout style="@style/Widget.Grocy.LinearLayout.ListItem.TextBox.Stretch">
+
+              <TextView
+                style="@style/Widget.Grocy.TextView.ListItem.Title"
+                android:text="@string/setting_offline_mode" />
+
+              <TextView
+                style="@style/Widget.Grocy.TextView.ListItem.Description"
+                android:text="@string/setting_offline_mode_description" />
+
+            </LinearLayout>
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+              android:id="@+id/switch_offline_mode"
+              style="@style/Widget.Grocy.Switch"
+              android:checked="@={viewModel.offlineModeEnabled}" />
+
+          </LinearLayout>
+
           <TextView
             style="@style/Widget.Grocy.TextView.Category"
             android:text="@string/category_additional_services" />

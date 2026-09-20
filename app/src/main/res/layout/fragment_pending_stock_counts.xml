@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ This file is part of Grocy Android.
+  ~
+  ~ Grocy Android is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ Grocy Android is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with Grocy Android. If not, see http://www.gnu.org/licenses/.
+  ~
+  ~ Copyright (c) 2020-2024 by Patrick Zedler and Dominic Zedler
+  ~ Copyright (c) 2024-2026 by Patrick Zedler
+  -->
+
+<layout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <data>
+    <import type="android.view.View" />
+    <variable
+      name="viewModel"
+      type="xyz.zedler.patrick.grocy.viewmodel.PendingStockCountsViewModel" />
+    <variable
+      name="activity"
+      type="xyz.zedler.patrick.grocy.activity.MainActivity" />
+    <variable
+      name="fragment"
+      type="xyz.zedler.patrick.grocy.fragment.PendingStockCountsFragment" />
+  </data>
+
+  <androidx.coordinatorlayout.widget.CoordinatorLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <com.google.android.material.appbar.AppBarLayout
+      android:id="@+id/app_bar"
+      android:layout_width="match_parent"
+      android:layout_height="?attr/actionBarSize"
+      android:orientation="vertical">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+          android:id="@+id/back"
+          android:layout_width="48dp"
+          android:layout_height="48dp"
+          android:layout_marginStart="4dp"
+          android:layout_marginEnd="20dp"
+          android:background="?attr/actionBarItemBackground"
+          android:clickable="true"
+          android:gravity="center"
+          android:contentDescription="@string/action_back"
+          android:tooltipText="@string/action_back"
+          android:focusable="true"
+          tools:targetApi="o"
+          android:onClick="@{() -> activity.navUtil.navigateUp()}">
+
+          <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_round_arrow_back" />
+
+        </FrameLayout>
+
+        <TextView
+          style="@style/Widget.Grocy.TextView.Toolbar"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:layout_marginEnd="16dp"
+          android:text="@string/title_pending_stock_counts" />
+
+        <FrameLayout
+          android:id="@+id/discard_all"
+          android:layout_width="48dp"
+          android:layout_height="48dp"
+          android:layout_marginStart="4dp"
+          android:layout_marginEnd="4dp"
+          android:background="?attr/actionBarItemBackground"
+          android:clickable="true"
+          android:gravity="center"
+          android:contentDescription="@string/action_discard_all"
+          android:tooltipText="@string/action_discard_all"
+          android:focusable="true"
+          tools:targetApi="o"
+          android:onClick="@{() -> fragment.showDiscardAllDialog()}">
+
+          <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_round_delete_anim" />
+
+        </FrameLayout>
+
+      </LinearLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+      android:id="@+id/scroll"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:layout_marginTop="?attr/actionBarSize"
+      android:overScrollMode="never"
+      android:fillViewport="true">
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:orientation="vertical"
+        android:animateLayoutChanges="true">
+
+        <View
+          android:id="@+id/dummy_focus_view"
+          android:layout_width="0dp"
+          android:layout_height="0dp"
+          android:focusable="true"
+          android:focusableInTouchMode="true" />
+
+        <com.google.android.material.card.MaterialCardView
+          style="@style/Widget.Grocy.Card.Text"
+          android:layout_marginStart="16dp"
+          android:layout_marginEnd="16dp"
+          android:layout_marginTop="8dp"
+          android:layout_marginBottom="8dp">
+
+          <TextView
+            style="@style/Widget.Grocy.TextView.Paragraph.Card"
+            android:text="@string/msg_pending_stock_counts" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- FORK (offline inventory): say up front why transferring will not work, instead of
+             only answering after the user pressed the button -->
+        <com.google.android.material.card.MaterialCardView
+          style="@style/Widget.Grocy.Card.Text.Error"
+          android:layout_marginStart="16dp"
+          android:layout_marginEnd="16dp"
+          android:layout_marginBottom="8dp"
+          android:visibility="@{viewModel.offlineModeLive ? View.VISIBLE : View.GONE}">
+
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+              style="@style/Widget.Grocy.TextView"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:textColor="?attr/colorOnErrorContainer"
+              android:text="@string/msg_pending_stock_counts_offline_hint" />
+
+            <com.google.android.material.button.MaterialButton
+              style="@style/Widget.Grocy.Button.TonalButton"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_gravity="end"
+              android:layout_marginTop="8dp"
+              android:text="@string/action_disable_offline_mode"
+              android:onClick="@{() -> viewModel.disableOfflineMode()}" />
+
+          </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+          android:id="@+id/text_empty"
+          style="@style/Widget.Grocy.TextView.Paragraph"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginHorizontal="16dp"
+          android:layout_marginVertical="16dp"
+          android:text="@string/msg_pending_stock_counts_empty" />
+
+        <androidx.recyclerview.widget.RecyclerView
+          android:id="@+id/recycler"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:clipToPadding="false"
+          android:paddingTop="8dp"
+          android:paddingBottom="100dp"
+          android:overScrollMode="never" />
+
+      </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+  </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</layout>

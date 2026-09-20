@@ -335,6 +335,38 @@
   <string name="msg_data_copied_from_product">Data was copied from the product \"%1$s\".</string>
   <string name="msg_recipe_added_to_cart">Added recipe ingredients to cart</string>
   <string name="msg_recipe_consumed">Removed all ingredients of recipe \"%1$s\" from stock</string>
+  <!-- FORK (offline inventory) -->
+  <string name="msg_pending_stock_counts_overview">There are counts on the device that have not yet been transferred to the server. Tap here for details.</string>
+  <string name="msg_pending_stock_counts">Counts that were entered while offline are listed here. Inventory entries store the counted target amount, so transferring them later produces the same result. Consumptions store an amount to be booked off and are sent exactly once.</string>
+  <string name="msg_pending_stock_counts_empty">No counts are waiting to be transferred.</string>
+  <string name="msg_pending_stock_counts_discard_all">Discard all counts that have not been transferred yet? This cannot be undone.</string>
+  <string name="msg_pending_stock_counts_discarded">Counts discarded</string>
+  <string name="msg_pending_stock_counts_offline_mode">Offline mode is still on. Turn it off in the settings to transfer the counts.</string>
+  <string name="msg_pending_stock_counts_offline_hint">Offline mode is on, so nothing can be sent to the server right now.</string>
+  <string name="action_disable_offline_mode">Turn off</string>
+  <!-- %1$s is the number of transferred counts, %2$s the number of failed ones -->
+  <string name="msg_pending_stock_counts_partly_transferred">%1$s transferred, %2$s failed</string>
+  <plurals name="msg_pending_stock_counts_transferred">
+    <item quantity="one">%1$d count transferred</item>
+    <item quantity="other">%1$d counts transferred</item>
+  </plurals>
+  <string name="msg_offline_count_stored">Saved on the device</string>
+  <string name="msg_offline_mode_on">Offline mode on — bookings are saved on the device</string>
+  <string name="msg_offline_mode_off">Offline mode off</string>
+  <!-- %1$s is the number of locations this product is stored at -->
+  <string name="msg_inventory_multiple_locations">This product is stored at %1$s locations. An inventory sets the total amount across all of them — use consume for a correction at one location.</string>
+  <string name="msg_offline_barcode_discarded">Barcode not saved — no server connection</string>
+  <string name="action_transfer_pending_counts">Transfer</string>
+  <string name="action_discard_all">Discard all</string>
+  <!-- %1$s is the counted target amount including its quantity unit -->
+  <string name="label_pending_count_inventory">New amount: %1$s</string>
+  <!-- %1$s is the amount to be booked off including its quantity unit -->
+  <string name="label_pending_count_consume">Consume: %1$s</string>
+  <string name="label_pending_count_location">Location: %1$s</string>
+  <string name="title_pending_stock_counts">Offline counts</string>
+  <string name="setting_offline_mode">Offline mode</string>
+  <string name="setting_offline_mode_description">Save inventory and consumption on the device instead of sending them. Useful for counting in places without a connection.</string>
+
   <string name="msg_stored_purchases_overview">There are purchases on the device that have not yet been transferred to the server. Tap here for details.</string>
   <string name="msg_stored_purchases">Purchases that have not yet been transferred to the server are displayed here. They were saved together with temporary products in this app so that you could scan your purchase faster in quick mode and not have to create new products for the master data directly.</string>
   <string name="msg_stored_purchases_product_offline">Tap on the product and fill in the required data. After that, the product will be shown here as online and the stored purchases can be sent to the server.</string>

@@ -508,6 +508,25 @@
 
               </com.google.android.material.card.MaterialCardView>
 
+              <!-- FORK (offline inventory) -->
+              <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Grocy.Card.Text.Error"
+                android:visibility="@{viewModel.pendingStockCountsOnDevice ? View.VISIBLE : View.GONE}"
+                android:onClick="@{() -> activity.navUtil.navigateDeepLink(@string/deep_link_pendingStockCountsFragment)}"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
+                app:clickUtil="@{clickUtil}">
+
+                <TextView
+                  style="@style/Widget.Grocy.TextView"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:textColor="?attr/colorOnErrorContainer"
+                  android:text="@string/msg_pending_stock_counts_overview" />
+
+              </com.google.android.material.card.MaterialCardView>
+
               <com.google.android.material.card.MaterialCardView
                 style="@style/Widget.Grocy.Card.Text.Error"
                 android:visibility="@{viewModel.storedPurchasesOnDevice ? View.VISIBLE : View.GONE}"

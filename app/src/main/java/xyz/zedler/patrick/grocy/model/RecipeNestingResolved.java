@@ -48,7 +48,10 @@ import com.google.gson.annotations.SerializedName;
     + "SELECT "
     + " *, "
     + " 1 AS id "
-    + "FROM r1;")
+    // FORK (offline inventory): no trailing semicolon. SQLite stores a view definition without
+    // it, while Room builds the expected ViewInfo straight from this string — with a semicolon
+    // the two never match and every migration fails schema validation.
+    + "FROM r1")
 public class RecipeNestingResolved {
 
   @PrimaryKey

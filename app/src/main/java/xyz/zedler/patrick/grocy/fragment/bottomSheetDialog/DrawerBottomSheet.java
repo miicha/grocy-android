@@ -38,6 +38,7 @@ import androidx.navigation.NavDirections;
 import androidx.navigation.NavOptions;
 import androidx.preference.PreferenceManager;
 import com.google.android.material.button.MaterialButton;
+import xyz.zedler.patrick.grocy.Constants;
 import xyz.zedler.patrick.grocy.Constants.PREF;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.activity.MainActivity;
@@ -119,6 +120,14 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
     binding.linearDrawerMasterData.setBackground(
         ViewUtil.getRippleBgListItemSurface(requireContext())
     );
+    // FORK (offline inventory)
+    binding.linearDrawerOfflineMode.setBackground(
+        ViewUtil.getRippleBgListItemSurface(requireContext())
+    );
+    binding.switchDrawerOfflineMode.setChecked(sharedPrefs.getBoolean(
+        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
+        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
+    ));
     binding.linearDrawerSettings.setBackground(
         ViewUtil.getRippleBgListItemSurface(requireContext())
     );
@@ -188,6 +197,7 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
         binding.linearDrawerRecipes,
         binding.linearDrawerMealPlan,
         binding.linearDrawerMasterData,
+        binding.linearDrawerOfflineMode,
         binding.linearDrawerSettings,
         binding.linearDrawerFeedback,
         binding.linearDrawerHelp
@@ -275,6 +285,8 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
     } else if (id == R.id.linear_drawer_master_data) {
       navigateCustom(DrawerBottomSheetDirections
           .actionDrawerBottomSheetDialogFragmentToNavigationMasterObjects());
+    } else if (id == R.id.linear_drawer_offline_mode) {
+      toggleOfflineMode();
     } else if (id == R.id.linear_drawer_settings) {
       navigateCustom(DrawerBottomSheetDirections
           .actionDrawerBottomSheetDialogFragmentToSettingsFragment());
@@ -293,6 +305,22 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
       navigateCustom(DrawerBottomSheetDirections
           .actionDrawerBottomSheetDialogFragmentToMealPlanFragment());
     }
+  }
+
+  /**
+   * FORK (offline inventory): flips the offline mode and keeps the sheet open, so the switch
+   * shows the new state right away.
+   */
+  private void toggleOfflineMode() {
+    boolean enabled = !sharedPrefs.getBoolean(
+        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
+        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
+    );
+    sharedPrefs.edit().putBoolean(Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE, enabled).apply();
+    binding.switchDrawerOfflineMode.setChecked(enabled);
+    activity.showSnackbar(
+        enabled ? R.string.msg_offline_mode_on : R.string.msg_offline_mode_off, false
+    );
   }
 
   private void navigateCustom(NavDirections directions) {

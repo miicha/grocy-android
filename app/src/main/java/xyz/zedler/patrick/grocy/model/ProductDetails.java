@@ -141,6 +141,87 @@ public class ProductDetails implements Parcelable {
     quFactorPurchaseToStock = parcel.readString();
   }
 
+  /**
+   * FORK (offline inventory): builds the subset of fields that can be derived from the local
+   * Room cache. Everything the server computes and nothing offline depends on (prices other than
+   * the last one, shelf life, spoil rate, due dates, child products) stays null.
+   */
+  private ProductDetails(
+      Product product,
+      String stockAmount,
+      String stockAmountAggregated,
+      String stockAmountOpened,
+      String stockAmountOpenedAggregated,
+      String isAggregatedAmount,
+      QuantityUnit quantityUnitStock,
+      QuantityUnit quantityUnitPurchase,
+      QuantityUnit quantityUnitConsume,
+      QuantityUnit quantityUnitPrice,
+      String lastPrice,
+      String shoppingLocationId,
+      Location location,
+      String quFactorPurchaseToStock
+  ) {
+    this.product = product;
+    this.stockAmount = stockAmount;
+    this.stockAmountAggregated = stockAmountAggregated;
+    this.stockAmountOpened = stockAmountOpened;
+    this.stockAmountOpenedAggregated = stockAmountOpenedAggregated;
+    this.isAggregatedAmount = isAggregatedAmount;
+    this.quantityUnitStock = quantityUnitStock;
+    this.quantityUnitPurchase = quantityUnitPurchase;
+    this.quantityUnitConsume = quantityUnitConsume;
+    this.quantityUnitPrice = quantityUnitPrice;
+    this.lastPrice = lastPrice;
+    this.lastShoppingLocationId = shoppingLocationId;
+    this.defaultShoppingLocationId = shoppingLocationId;
+    this.location = location;
+    this.quFactorPurchaseToStock = quFactorPurchaseToStock;
+    this.lastPurchased = null;
+    this.lastUsed = null;
+    this.stockValue = null;
+    this.avgPrice = null;
+    this.currentPrice = null;
+    this.nextDueDate = null;
+    this.averageShelfLifeDays = null;
+    this.spoilRatePercent = null;
+    this.hasChilds = null;
+    this.quFactorPriceToStock = null;
+  }
+
+  /**
+   * FORK (offline inventory): assembles a ProductDetails from cached data so the inventory and
+   * consume forms work without a server round trip. {@code stockItem} may be null for a product
+   * that currently has no stock; the amounts are then zero.
+   */
+  public static ProductDetails fromCache(
+      @NonNull Product product,
+      @Nullable StockItem stockItem,
+      @Nullable Location location,
+      @Nullable QuantityUnit quantityUnitStock,
+      @Nullable QuantityUnit quantityUnitPurchase,
+      @Nullable QuantityUnit quantityUnitConsume,
+      @Nullable QuantityUnit quantityUnitPrice,
+      @Nullable String lastPrice
+  ) {
+    return new ProductDetails(
+        product,
+        stockItem != null ? stockItem.getAmount() : "0",
+        stockItem != null ? stockItem.getAmountAggregated() : "0",
+        stockItem != null ? stockItem.getAmountOpened() : "0",
+        stockItem != null ? stockItem.getAmountOpenedAggregated() : "0",
+        stockItem != null ? stockItem.getIsAggregatedAmount() : "0",
+        quantityUnitStock,
+        quantityUnitPurchase,
+        quantityUnitConsume,
+        quantityUnitPrice,
+        lastPrice,
+        product.getStoreId(),
+        location,
+        product.getQuFactorPurchaseToStock()
+    );
+  }
+
   @Override
   public void writeToParcel(Parcel dest, int flags) {
     dest.writeParcelable(product, 0);

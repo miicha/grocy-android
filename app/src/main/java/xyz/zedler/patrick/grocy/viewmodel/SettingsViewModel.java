@@ -345,6 +345,19 @@ public class SettingsViewModel extends BaseViewModel {
         .putBoolean(Constants.SETTINGS.BEHAVIOR.BARCODE_AMOUNT, enabled).apply();
   }
 
+  // FORK (offline inventory)
+  public boolean getOfflineModeEnabled() {
+    return sharedPrefs.getBoolean(
+        BEHAVIOR.OFFLINE_MODE,
+        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
+    );
+  }
+
+  public void setOfflineModeEnabled(boolean enabled) {
+    sharedPrefs.edit()
+        .putBoolean(Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE, enabled).apply();
+  }
+
   public boolean getKeepScreenOnRecipesEnabled() {
     return sharedPrefs.getBoolean(
             RECIPES.KEEP_SCREEN_ON,

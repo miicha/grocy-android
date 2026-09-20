@@ -54,6 +54,8 @@ import xyz.zedler.patrick.grocy.fragment.bottomSheetDialog.StockLocationsBottomS
 import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.model.Event;
 import xyz.zedler.patrick.grocy.model.InfoFullscreen;
+import xyz.zedler.patrick.grocy.model.Location;
+import xyz.zedler.patrick.grocy.model.PendingStockCount;
 import xyz.zedler.patrick.grocy.model.Product;
 import xyz.zedler.patrick.grocy.model.ProductBarcode;
 import xyz.zedler.patrick.grocy.model.ProductDetails;
@@ -67,6 +69,7 @@ import xyz.zedler.patrick.grocy.repository.InventoryRepository;
 import xyz.zedler.patrick.grocy.util.ArrayUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil.Grocycode;
+import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.util.QuantityUnitConversionUtil;
@@ -87,6 +90,12 @@ public class ConsumeViewModel extends BaseViewModel {
   private List<QuantityUnitConversionResolved> unitConversions;
   private List<ProductBarcode> barcodes;
   private HashMap<Integer, QuantityUnit> quantityUnitHashMap;
+  // FORK (offline inventory): cached data so the form can be filled without server
+  private List<Location> locations;
+  private List<StockLocation> stockLocations;
+  private List<StockEntry> stockEntries;
+  private HashMap<Integer, StockItem> stockItemHashMap;
+  private HashMap<Integer, Location> locationHashMap;
 
   private final MutableLiveData<Boolean> isLoadingLive;
   private final MutableLiveData<InfoFullscreen> infoFullscreenLive;
@@ -94,6 +103,8 @@ public class ConsumeViewModel extends BaseViewModel {
 
   private Runnable queueEmptyAction;
   private boolean productWillBeFilled;
+  // FORK (offline inventory): see InventoryViewModel
+  private boolean productDetailsFromCache;
   private final int maxDecimalPlacesAmount;
 
   public ConsumeViewModel(@NonNull Application application, ConsumeFragmentArgs args) {
@@ -139,6 +150,11 @@ public class ConsumeViewModel extends BaseViewModel {
       this.barcodes = data.getBarcodes();
       this.quantityUnitHashMap = ArrayUtil.getQuantityUnitsHashMap(data.getQuantityUnits());
       this.unitConversions = data.getQuantityUnitConversionsResolved();
+      this.locations = data.getLocations();
+      this.stockLocations = data.getStockLocations();
+      this.stockEntries = data.getStockEntries();
+      this.stockItemHashMap = ArrayUtil.getStockItemHashMap(data.getStockItems());
+      this.locationHashMap = ArrayUtil.getLocationsHashMap(data.getLocations());
       formData.getProductsLive().setValue(
           Product.getActiveInStockProductsOnly(products, data.getStockItems())
       );
@@ -152,6 +168,14 @@ public class ConsumeViewModel extends BaseViewModel {
   }
 
   public void downloadData(boolean forceUpdate) {
+    if (isOfflineModeActive()) { // skip downloading
+      isLoadingLive.setValue(false);
+      if (queueEmptyAction != null) {
+        queueEmptyAction.run();
+        queueEmptyAction = null;
+      }
+      return;
+    }
     dlHelper.updateData(
         updated -> {
           if (updated) {
@@ -168,11 +192,24 @@ public class ConsumeViewModel extends BaseViewModel {
         ProductBarcode.class,
         QuantityUnit.class,
         QuantityUnitConversionResolved.class,
-        StockItem.class
+        StockItem.class,
+        // FORK (offline inventory): the offline form reads these from the cache
+        Location.class,
+        StockLocation.class,
+        StockEntry.class
+    );
+  }
+
+  /** FORK (offline inventory): see {@link InventoryViewModel#isOfflineModeActive()}. */
+  public boolean isOfflineModeActive() {
+    return isOffline() || sharedPrefs.getBoolean(
+        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
+        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
     );
   }
 
   public void setProduct(int productId, ProductBarcode barcode, String stockEntryId) {
+    productDetailsFromCache = false;
     Runnable onQueueEmptyListener = () -> {
       ProductDetails productDetails = formData.getProductDetailsLive().getValue();
       assert productDetails != null;
@@ -292,9 +329,25 @@ public class ConsumeViewModel extends BaseViewModel {
       }
     };
 
+    // FORK (offline inventory): fill product details, stock locations and stock entries from the
+    // Room cache instead of asking the server
+    if (isOfflineModeActive()) {
+      if (setProductFromCache(productId)) {
+        onQueueEmptyListener.run();
+      } else {
+        showMessageAndContinueScanning(getString(R.string.error_no_product_details));
+      }
+      return;
+    }
     dlHelper.newQueue(
         updated -> onQueueEmptyListener.run(),
-        error -> showMessageAndContinueScanning(getString(R.string.error_no_product_details))
+        error -> {
+          if (setProductFromCache(productId)) {
+            onQueueEmptyListener.run();
+          } else {
+            showMessageAndContinueScanning(getString(R.string.error_no_product_details));
+          }
+        }
     ).append(
         ProductDetails.getProductDetails(
             dlHelper,
@@ -310,6 +363,53 @@ public class ConsumeViewModel extends BaseViewModel {
             formData::setStockEntries
         )
     ).start();
+  }
+
+  /**
+   * FORK (offline inventory): fills the form from cached data. Returns false when the product is
+   * not in the cache.
+   */
+  private boolean setProductFromCache(int productId) {
+    Product product = Product.getProductFromId(products, productId);
+    if (product == null) {
+      return false;
+    }
+    StockItem stockItem = stockItemHashMap != null ? stockItemHashMap.get(productId) : null;
+    Location location = locationHashMap != null
+        ? locationHashMap.get(product.getLocationIdInt()) : null;
+    QuantityUnit quStock = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdStockInt()) : null;
+    QuantityUnit quPurchase = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdPurchaseInt()) : null;
+    QuantityUnit quConsume = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdConsumeInt()) : null;
+    QuantityUnit quPrice = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdPriceInt()) : null;
+
+    List<StockLocation> locationsOfProduct = new ArrayList<>();
+    if (stockLocations != null) {
+      for (StockLocation stockLocation : stockLocations) {
+        if (stockLocation.getProductId() == productId) {
+          locationsOfProduct.add(stockLocation);
+        }
+      }
+    }
+    List<StockEntry> entriesOfProduct = new ArrayList<>();
+    if (stockEntries != null) {
+      for (StockEntry stockEntry : stockEntries) {
+        if (stockEntry.getProductId() == productId) {
+          entriesOfProduct.add(stockEntry);
+        }
+      }
+    }
+
+    productDetailsFromCache = true;
+    formData.getProductDetailsLive().setValue(ProductDetails.fromCache(
+        product, stockItem, location, quStock, quPurchase, quConsume, quPrice, null
+    ));
+    formData.setStockLocations(locationsOfProduct);
+    formData.setStockEntries(entriesOfProduct);
+    return true;
   }
 
   public void onBarcodeRecognized(String barcode) {
@@ -407,13 +507,26 @@ public class ConsumeViewModel extends BaseViewModel {
       showMessage(R.string.error_missing_information);
       return;
     }
+    // FORK (offline inventory): a scanned barcode cannot be uploaded without a server
     if (formData.getBarcodeLive().getValue() != null) {
-      uploadProductBarcode(() -> consumeProduct(isActionOpen));
-      return;
+      if (isOfflineModeActive() || productDetailsFromCache) {
+        formData.getBarcodeLive().setValue(null);
+        showMessage(R.string.msg_offline_barcode_discarded);
+      } else {
+        uploadProductBarcode(() -> consumeProduct(isActionOpen));
+        return;
+      }
     }
     assert formData.getProductDetailsLive().getValue() != null;
     Product product = formData.getProductDetailsLive().getValue().getProduct();
     JSONObject body = formData.getFilledJSONObject(isActionOpen);
+
+    // FORK (offline inventory): "open" is not buffered — it is not part of counting and would
+    // need its own endpoint on replay
+    if (!isActionOpen && (isOfflineModeActive() || productDetailsFromCache)) {
+      storeConsumeOffline(product, body);
+      return;
+    }
     dlHelper.postWithArray(
         isActionOpen
             ? grocyApi.openProduct(product.getId())
@@ -461,6 +574,41 @@ public class ConsumeViewModel extends BaseViewModel {
             Log.i(TAG, "consumeProduct: " + error);
           }
         }
+    );
+  }
+
+  /**
+   * FORK (offline inventory): queues the consumption. Unlike an inventory booking this carries a
+   * delta, so it is sent exactly once — the queue entry is only dropped after the server
+   * confirmed it.
+   */
+  private void storeConsumeOffline(Product product, JSONObject body) {
+    PendingStockCount count = new PendingStockCount();
+    count.setAction(PendingStockCount.ACTION_CONSUME);
+    count.setProductId(product.getId());
+    count.setProductName(product.getName());
+    count.setAmount(body.optString("amount", null));
+    QuantityUnit quStock = quantityUnitHashMap != null
+        ? quantityUnitHashMap.get(product.getQuIdStockInt()) : null;
+    count.setQuantityUnitName(quStock != null ? quStock.getName() : null);
+    StockLocation stockLocation = formData.getStockLocationLive().getValue();
+    if (stockLocation != null && locationHashMap != null) {
+      count.setLocationName(LocationHierarchyUtil.getPath(
+          locationHashMap.get(stockLocation.getLocationId()), locations
+      ));
+    }
+    count.setBody(body.toString());
+    count.setCreatedAt(System.currentTimeMillis());
+    repository.insertPendingStockCount(
+        count,
+        id -> {
+          if (debug) {
+            Log.i(TAG, "storeConsumeOffline: queued " + count);
+          }
+          showSnackbar(new SnackbarMessage(getString(R.string.msg_offline_count_stored)));
+          sendEvent(Event.CONSUME_SUCCESS);
+        },
+        () -> showMessage(R.string.error_undefined)
     );
   }
 

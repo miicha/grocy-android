@@ -21,10 +21,13 @@
 package xyz.zedler.patrick.grocy.database;
 
 import android.content.Context;
+import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 import androidx.room.TypeConverters;
+import androidx.room.migration.Migration;
+import androidx.sqlite.db.SupportSQLiteDatabase;
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
@@ -36,6 +39,7 @@ import xyz.zedler.patrick.grocy.dao.MealPlanSectionDao;
 import xyz.zedler.patrick.grocy.dao.MissingItemDao;
 import xyz.zedler.patrick.grocy.dao.PendingProductBarcodeDao;
 import xyz.zedler.patrick.grocy.dao.PendingProductDao;
+import xyz.zedler.patrick.grocy.dao.PendingStockCountDao;
 import xyz.zedler.patrick.grocy.dao.ProductAveragePriceDao;
 import xyz.zedler.patrick.grocy.dao.ProductBarcodeDao;
 import xyz.zedler.patrick.grocy.dao.ProductDao;
@@ -70,6 +74,7 @@ import xyz.zedler.patrick.grocy.model.MealPlanSection;
 import xyz.zedler.patrick.grocy.model.MissingItem;
 import xyz.zedler.patrick.grocy.model.PendingProduct;
 import xyz.zedler.patrick.grocy.model.PendingProductBarcode;
+import xyz.zedler.patrick.grocy.model.PendingStockCount;
 import xyz.zedler.patrick.grocy.model.Product;
 import xyz.zedler.patrick.grocy.model.ProductAveragePrice;
 import xyz.zedler.patrick.grocy.model.ProductBarcode;
@@ -121,6 +126,7 @@ import xyz.zedler.patrick.grocy.repository.MainRepository.OnVersionListener;
         ProductAveragePrice.class,
         PendingProduct.class,
         PendingProductBarcode.class,
+        PendingStockCount.class,
         StoredPurchase.class,
         User.class,
         Chore.class,
@@ -140,7 +146,8 @@ import xyz.zedler.patrick.grocy.repository.MainRepository.OnVersionListener;
         RecipeNestingResolved.class
     },
     // FORK (sublocations): 55 = parent_location_id on location_table
-    version = 55
+    // FORK (offline inventory): 56 = pending_stock_count_table
+    version = 56
 )
 @TypeConverters({Converters.class})
 public abstract class AppDatabase extends RoomDatabase {
@@ -187,6 +194,8 @@ public abstract class AppDatabase extends RoomDatabase {
 
   public abstract PendingProductBarcodeDao pendingProductBarcodeDao();
 
+  public abstract PendingStockCountDao pendingStockCountDao();
+
   public abstract StoredPurchaseDao storedPurchaseDao();
 
   public abstract UserDao userDao();
@@ -215,13 +224,36 @@ public abstract class AppDatabase extends RoomDatabase {
 
   public abstract ServerDao serverDao();
 
+  /**
+   * FORK (offline inventory): adds pending_stock_count_table. A real migration instead of the
+   * destructive fallback, because the table can hold counts that have not reached the server yet
+   * — wiping it on an app update would silently destroy field work.
+   */
+  static final Migration MIGRATION_55_56 = new Migration(55, 56) {
+    @Override
+    public void migrate(@NonNull SupportSQLiteDatabase database) {
+      database.execSQL(
+          "CREATE TABLE IF NOT EXISTS `pending_stock_count_table` ("
+              + "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+              + "`action` TEXT, "
+              + "`product_id` INTEGER NOT NULL, "
+              + "`product_name` TEXT, "
+              + "`location_name` TEXT, "
+              + "`amount` TEXT, "
+              + "`quantity_unit_name` TEXT, "
+              + "`body` TEXT, "
+              + "`created_at` INTEGER NOT NULL)"
+      );
+    }
+  };
+
   public static AppDatabase getAppDatabase(Context context) {
     if (INSTANCE == null) {
       INSTANCE = Room.databaseBuilder(
           context.getApplicationContext(),
           AppDatabase.class,
           "app_database"
-      ).fallbackToDestructiveMigration().build();
+      ).addMigrations(MIGRATION_55_56).fallbackToDestructiveMigration().build();
     }
     return INSTANCE;
   }

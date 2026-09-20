@@ -259,6 +259,36 @@
 
       </LinearLayout>
 
+      <!-- FORK (offline inventory): quick toggle, reachable from every screen and placed high
+           enough to stay visible while the drawer is still collapsed -->
+      <com.google.android.material.divider.MaterialDivider
+        style="@style/Widget.Grocy.Divider.Margin" />
+
+      <LinearLayout
+        android:id="@+id/linear_drawer_offline_mode"
+        style="@style/Widget.Grocy.LinearLayout.ListItem.SingleLine.Clickable">
+
+        <ImageView
+          android:id="@+id/image_drawer_offline_mode"
+          style="@style/Widget.Grocy.ImageView.ListItem.Icon"
+          android:importantForAccessibility="no"
+          android:src="@drawable/ic_round_cloud_pending" />
+
+        <TextView
+          style="@style/Widget.Grocy.TextView.DrawerItem"
+          android:layout_width="0dp"
+          android:layout_weight="1"
+          android:text="@string/setting_offline_mode" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+          android:id="@+id/switch_drawer_offline_mode"
+          style="@style/Widget.Grocy.Switch"
+          android:layout_marginStart="16dp"
+          android:clickable="false"
+          android:focusable="false" />
+
+      </LinearLayout>
+
       <LinearLayout
         android:id="@+id/container_tasks"
         android:layout_width="match_parent"

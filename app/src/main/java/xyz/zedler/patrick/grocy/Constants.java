@@ -176,6 +176,8 @@ public final class Constants {
       public final static String DATE_KEYBOARD_REVERSE = "date_keyboard_reverse";
       public final static String MESSAGE_DURATION = "message_duration";
       public final static String BARCODE_AMOUNT = "product_barcode_amount";
+      // FORK (offline inventory): buffer stock bookings locally instead of sending them
+      public final static String OFFLINE_MODE = "offline_mode";
     }
 
     public final static class SCANNER {
@@ -281,6 +283,8 @@ public final class Constants {
       public final static boolean DATE_KEYBOARD_REVERSE = false;
       public final static int MESSAGE_DURATION = 10;
       public final static boolean BARCODE_AMOUNT = true;
+      // FORK (offline inventory)
+      public final static boolean OFFLINE_MODE = false;
     }
 
     public final static class SCANNER {
@@ -498,6 +502,10 @@ public final class Constants {
       public final static String SAVE_NOT_CLOSE = "save_not_close";
       public final static String DONE = "done";
       public final static String PREPARATION = "preparation";
+      // FORK (offline inventory): two tags, because the FAB icon is only swapped when the tag
+      // changes — same tag would keep the old icon
+      public final static String SYNC = "sync";
+      public final static String SYNC_BLOCKED = "sync_blocked";
     }
   }
 

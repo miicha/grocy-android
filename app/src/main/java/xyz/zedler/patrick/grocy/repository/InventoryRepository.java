@@ -28,11 +28,14 @@ import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.util.List;
 import xyz.zedler.patrick.grocy.database.AppDatabase;
 import xyz.zedler.patrick.grocy.model.Location;
+import xyz.zedler.patrick.grocy.model.PendingStockCount;
 import xyz.zedler.patrick.grocy.model.Product;
 import xyz.zedler.patrick.grocy.model.ProductBarcode;
 import xyz.zedler.patrick.grocy.model.QuantityUnit;
 import xyz.zedler.patrick.grocy.model.QuantityUnitConversionResolved;
+import xyz.zedler.patrick.grocy.model.StockEntry;
 import xyz.zedler.patrick.grocy.model.StockItem;
+import xyz.zedler.patrick.grocy.model.StockLocation;
 import xyz.zedler.patrick.grocy.model.Store;
 
 public class InventoryRepository {
@@ -57,6 +60,9 @@ public class InventoryRepository {
     private final List<Store> stores;
     private final List<Location> locations;
     private final List<StockItem> stockItems;
+    // FORK (offline inventory): needed so the consume form works without the server
+    private final List<StockLocation> stockLocations;
+    private final List<StockEntry> stockEntries;
 
     public InventoryData(
         List<Product> products,
@@ -65,7 +71,9 @@ public class InventoryRepository {
         List<QuantityUnitConversionResolved> quantityUnitConversions,
         List<Store> stores,
         List<Location> locations,
-        List<StockItem> stockItems
+        List<StockItem> stockItems,
+        List<StockLocation> stockLocations,
+        List<StockEntry> stockEntries
     ) {
       this.products = products;
       this.barcodes = barcodes;
@@ -74,6 +82,8 @@ public class InventoryRepository {
       this.stores = stores;
       this.locations = locations;
       this.stockItems = stockItems;
+      this.stockLocations = stockLocations;
+      this.stockEntries = stockEntries;
     }
 
     public List<Product> getProducts() {
@@ -103,6 +113,35 @@ public class InventoryRepository {
     public List<StockItem> getStockItems() {
       return stockItems;
     }
+
+    public List<StockLocation> getStockLocations() {
+      return stockLocations;
+    }
+
+    public List<StockEntry> getStockEntries() {
+      return stockEntries;
+    }
+  }
+
+  /** FORK (offline inventory) */
+  public interface SuccessIdListener {
+
+    void onSuccess(long id);
+  }
+
+  /** FORK (offline inventory): queues a booking that could not be sent to the server. */
+  public void insertPendingStockCount(
+      PendingStockCount pendingStockCount,
+      SuccessIdListener onSuccess,
+      Runnable onError
+  ) {
+    appDatabase.pendingStockCountDao().insertPendingStockCount(pendingStockCount)
+        .subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .doOnSuccess(onSuccess::onSuccess)
+        .doOnError(e -> onError.run())
+        .onErrorComplete()
+        .subscribe();
   }
 
   public void loadFromDatabase(DataListener onSuccess, Consumer<Throwable> onError) {
@@ -115,6 +154,8 @@ public class InventoryRepository {
             appDatabase.storeDao().getStores(),
             appDatabase.locationDao().getLocations(),
             appDatabase.stockItemDao().getStockItems(),
+            appDatabase.stockLocationDao().getStockLocations(),
+            appDatabase.stockEntryDao().getStockEntries(),
             InventoryData::new
         )
         .subscribeOn(Schedulers.io())
