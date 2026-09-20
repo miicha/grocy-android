@@ -89,6 +89,25 @@
 
       </FrameLayout>
 
+      <!-- FORK (offline inventory): see fragment_inventory.xml -->
+      <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorError">
+
+        <TextView
+          style="@style/Widget.Grocy.TextView.LabelLarge"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:layout_marginTop="4dp"
+          android:layout_marginBottom="4dp"
+          android:layout_gravity="center"
+          android:visibility="@{viewModel.offlineLive ? View.VISIBLE : View.GONE}"
+          android:textColor="?attr/colorOnError"
+          android:text="@string/error_offline" />
+
+      </FrameLayout>
+
     </com.google.android.material.appbar.AppBarLayout>
 
     <xyz.zedler.patrick.grocy.view.swiperefreshlayout.CustomSwipeRefreshLayout

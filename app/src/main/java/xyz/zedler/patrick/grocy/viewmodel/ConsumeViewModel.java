@@ -71,6 +71,7 @@ import xyz.zedler.patrick.grocy.util.GrocycodeUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil.Grocycode;
 import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.util.QuantityUnitConversionUtil;
 import xyz.zedler.patrick.grocy.util.VersionUtil;
@@ -202,10 +203,7 @@ public class ConsumeViewModel extends BaseViewModel {
 
   /** FORK (offline inventory): see {@link InventoryViewModel#isOfflineModeActive()}. */
   public boolean isOfflineModeActive() {
-    return isOffline() || sharedPrefs.getBoolean(
-        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    );
+    return OfflineModeUtil.isEnabled(sharedPrefs);
   }
 
   public void setProduct(int productId, ProductBarcode barcode, String stockEntryId) {

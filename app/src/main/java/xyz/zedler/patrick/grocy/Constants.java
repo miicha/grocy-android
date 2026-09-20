@@ -178,6 +178,9 @@ public final class Constants {
       public final static String BARCODE_AMOUNT = "product_barcode_amount";
       // FORK (offline inventory): buffer stock bookings locally instead of sending them
       public final static String OFFLINE_MODE = "offline_mode";
+      // set when OFFLINE_MODE was switched on by failure detection rather than by the user, so
+      // it can clear itself once the server answers again — a deliberate choice must not
+      public final static String OFFLINE_MODE_AUTO = "offline_mode_auto";
     }
 
     public final static class SCANNER {

@@ -346,6 +346,8 @@
   <string name="msg_offline_count_stored">Auf dem Gerät gespeichert</string>
   <string name="msg_offline_mode_on">Offline-Modus an – Buchungen werden auf dem Gerät gespeichert</string>
   <string name="msg_offline_mode_off">Offline-Modus aus</string>
+  <string name="msg_offline_mode_checking">Verbindung wird geprüft …</string>
+  <string name="msg_offline_mode_unreachable">Server nicht erreichbar – bleibt offline</string>
   <string name="msg_inventory_multiple_locations">Dieses Produkt liegt an %1$s Standorten. Eine Inventur setzt den Gesamtbestand über alle – für eine Korrektur an einem Standort den Verbrauch nutzen.</string>
   <string name="msg_offline_barcode_discarded">Barcode nicht gespeichert – keine Serververbindung</string>
   <string name="action_transfer_pending_counts">Übertragen</string>

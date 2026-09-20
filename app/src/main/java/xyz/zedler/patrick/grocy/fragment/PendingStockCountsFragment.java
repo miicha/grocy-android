@@ -121,7 +121,7 @@ public class PendingStockCountsFragment extends BaseFragment
     activity.updateBottomAppBar(true, R.menu.menu_empty, null);
     // FORK (offline inventory): the icon has to say whether transferring is possible at all,
     // otherwise the only feedback comes after pressing it
-    viewModel.getOfflineModeLive().observe(getViewLifecycleOwner(), offlineMode -> {
+    viewModel.getOfflineLive().observe(getViewLifecycleOwner(), offlineMode -> {
       boolean blocked = offlineMode != null && offlineMode;
       activity.updateFab(
           blocked ? R.drawable.ic_round_cloud_pending : R.drawable.ic_round_cloud_sync,

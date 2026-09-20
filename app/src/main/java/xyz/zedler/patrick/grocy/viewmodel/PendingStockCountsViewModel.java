@@ -22,7 +22,6 @@ package xyz.zedler.patrick.grocy.viewmodel;
 
 import android.app.Application;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
@@ -33,13 +32,13 @@ import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONException;
 import org.json.JSONObject;
-import xyz.zedler.patrick.grocy.Constants;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.api.GrocyApi;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.model.PendingStockCount;
 import xyz.zedler.patrick.grocy.model.SnackbarMessage;
 import xyz.zedler.patrick.grocy.repository.PendingStockCountsRepository;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 
 /**
@@ -67,9 +66,6 @@ public class PendingStockCountsViewModel extends BaseViewModel {
   private final MutableLiveData<Boolean> isLoadingLive;
   private final MutableLiveData<Boolean> isSyncingLive;
   private final MutableLiveData<List<PendingStockCount>> itemsLive;
-  private final MutableLiveData<Boolean> offlineModeLive;
-  /** Kept as a field — SharedPreferences only holds a weak reference to its listeners. */
-  private final OnSharedPreferenceChangeListener prefsListener;
 
   public PendingStockCountsViewModel(@NonNull Application application) {
     super(application);
@@ -80,14 +76,6 @@ public class PendingStockCountsViewModel extends BaseViewModel {
     isLoadingLive = new MutableLiveData<>(false);
     isSyncingLive = new MutableLiveData<>(false);
     itemsLive = new MutableLiveData<>(new ArrayList<>());
-    offlineModeLive = new MutableLiveData<>(readOfflineMode());
-    // the mode can be flipped from the drawer while this screen is open
-    prefsListener = (prefs, key) -> {
-      if (Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE.equals(key)) {
-        offlineModeLive.setValue(readOfflineMode());
-      }
-    };
-    sharedPrefs.registerOnSharedPreferenceChangeListener(prefsListener);
 
     dlHelper = new DownloadHelper(getApplication(), TAG, isLoadingLive::setValue, getOfflineLive());
     grocyApi = new GrocyApi(getApplication());
@@ -113,20 +101,21 @@ public class PendingStockCountsViewModel extends BaseViewModel {
     return isSyncingLive;
   }
 
-  public MutableLiveData<Boolean> getOfflineModeLive() {
-    return offlineModeLive;
-  }
-
-  private boolean readOfflineMode() {
-    return sharedPrefs.getBoolean(
-        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    );
-  }
-
-  /** Lets the user leave offline mode straight from this screen. */
+  /**
+   * Lets the user leave offline mode straight from this screen — but only if the server really
+   * answers, otherwise they would press transfer next and watch every entry fail.
+   */
   public void disableOfflineMode() {
-    sharedPrefs.edit().putBoolean(Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE, false).apply();
+    showMessage(R.string.msg_offline_mode_checking);
+    dlHelper.checkServerReachable(reachable -> {
+      if (reachable) {
+        OfflineModeUtil.setByUser(sharedPrefs, false);
+        showMessage(R.string.msg_offline_mode_off);
+      } else {
+        OfflineModeUtil.markDetected(sharedPrefs);
+        showMessage(R.string.msg_offline_mode_unreachable);
+      }
+    });
   }
 
   /** Sends every queued booking, in the order it was entered. */
@@ -140,7 +129,7 @@ public class PendingStockCountsViewModel extends BaseViewModel {
       return;
     }
     // sending while offline mode is still on would just fail for every single entry
-    if (readOfflineMode()) {
+    if (OfflineModeUtil.isEnabled(sharedPrefs)) {
       showMessage(R.string.msg_pending_stock_counts_offline_mode);
       return;
     }
@@ -248,7 +237,6 @@ public class PendingStockCountsViewModel extends BaseViewModel {
 
   @Override
   protected void onCleared() {
-    sharedPrefs.unregisterOnSharedPreferenceChangeListener(prefsListener);
     dlHelper.destroy();
     super.onCleared();
   }

@@ -29,8 +29,11 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.lifecycle.MutableLiveData;
 import androidx.preference.PreferenceManager;
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.NoConnectionError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
+import com.android.volley.TimeoutError;
 import com.android.volley.VolleyError;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -79,6 +82,7 @@ import xyz.zedler.patrick.grocy.model.User;
 import xyz.zedler.patrick.grocy.model.Userfield;
 import xyz.zedler.patrick.grocy.model.VolatileItem;
 import xyz.zedler.patrick.grocy.util.NumUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.web.CustomByteArrayRequest;
 import xyz.zedler.patrick.grocy.web.CustomJsonArrayRequest;
@@ -108,6 +112,8 @@ public class DownloadHelper {
   private final String apiKey;
   public final boolean debug;
   private final int timeoutSeconds;
+  // FORK (offline inventory): the reachability probe answers a waiting user, so it must be quick
+  private static final int REACHABILITY_TIMEOUT_SECONDS = 6;
 
   public DownloadHelper(
       Application application,
@@ -393,6 +399,55 @@ public class DownloadHelper {
     delete(url, uuidHelper, onResponse, onError);
   }
 
+  /**
+   * FORK (offline inventory): a refresh failed. Only a genuine connection problem switches the
+   * app to offline — an HTTP error means the server answered and is reachable.
+   */
+  private void onDownloadFailed(Object error) {
+    boolean noConnection = error instanceof NoConnectionError || error instanceof TimeoutError;
+    if (noConnection) {
+      OfflineModeUtil.enableDetected(sharedPrefs);
+    }
+    if (offlineLive != null && noConnection) {
+      offlineLive.setValue(true);
+    }
+  }
+
+  /** FORK (offline inventory): the server answered, so a self-detected offline state can go. */
+  private void onDownloadSucceeded() {
+    OfflineModeUtil.clearDetected(sharedPrefs);
+    if (offlineLive != null && !OfflineModeUtil.isEnabled(sharedPrefs)) {
+      offlineLive.setValue(false);
+    }
+  }
+
+  /**
+   * FORK (offline inventory): short, non-retrying probe for "can we reach the server right now".
+   * Deliberately not the configured timeout — this answers a user who just tapped a switch and
+   * is waiting, not a background refresh.
+   */
+  public void checkServerReachable(OnReachabilityListener listener) {
+    CustomStringRequest request = new CustomStringRequest(
+        Request.Method.GET,
+        grocyApi.getDbChangedTime(),
+        apiKey,
+        sharedPrefs.getString(Constants.PREF.HOME_ASSISTANT_INGRESS_SESSION_KEY, null),
+        response -> listener.onResult(true),
+        error -> listener.onResult(false),
+        REACHABILITY_TIMEOUT_SECONDS,
+        uuidHelper
+    );
+    request.setRetryPolicy(new DefaultRetryPolicy(
+        REACHABILITY_TIMEOUT_SECONDS * 1000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+    ));
+    requestQueue.add(request);
+  }
+
+  public interface OnReachabilityListener {
+
+    void onResult(boolean reachable);
+  }
+
   public void getTimeDbChanged(
       OnStringResponseListener onResponseListener,
       OnMultiTypeErrorListener onErrorListener
@@ -476,7 +531,7 @@ public class DownloadHelper {
               types
           ),
           error -> {
-            if (offlineLive != null) offlineLive.setValue(true);
+            onDownloadFailed(error);
             if (errorsOnlyWithForceUpdate && !forceUpdate) {
               return;
             }
@@ -487,10 +542,10 @@ public class DownloadHelper {
     }
 
     NetworkQueue queue = newQueue(updated -> {
-      if (offlineLive != null) offlineLive.setValue(false);
+      onDownloadSucceeded();
       onFinished.onQueueEmpty(updated);
     }, error -> {
-      if (offlineLive != null) offlineLive.setValue(true);
+      onDownloadFailed(error);
       if (errorsOnlyWithForceUpdate && !forceUpdate) {
         return;
       }

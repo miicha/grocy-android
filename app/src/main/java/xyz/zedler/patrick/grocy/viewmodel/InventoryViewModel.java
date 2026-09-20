@@ -72,6 +72,7 @@ import xyz.zedler.patrick.grocy.util.GrocycodeUtil;
 import xyz.zedler.patrick.grocy.util.GrocycodeUtil.Grocycode;
 import xyz.zedler.patrick.grocy.util.LocationHierarchyUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.util.QuantityUnitConversionUtil;
 import xyz.zedler.patrick.grocy.util.VersionUtil;
@@ -523,10 +524,7 @@ public class InventoryViewModel extends BaseViewModel {
    * switched offline mode on deliberately or the last refresh failed.
    */
   public boolean isOfflineModeActive() {
-    return isOffline() || sharedPrefs.getBoolean(
-        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    );
+    return OfflineModeUtil.isEnabled(sharedPrefs);
   }
 
   /**

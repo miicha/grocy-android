@@ -26,6 +26,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.sqlite.SQLiteBlobTooBigException;
@@ -55,6 +56,7 @@ import xyz.zedler.patrick.grocy.model.BottomSheetEvent;
 import xyz.zedler.patrick.grocy.model.Event;
 import xyz.zedler.patrick.grocy.model.SnackbarMessage;
 import xyz.zedler.patrick.grocy.util.LocaleUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 
 public class BaseViewModel extends AndroidViewModel {
@@ -62,6 +64,8 @@ public class BaseViewModel extends AndroidViewModel {
   private final EventHandler eventHandler;
   private final MutableLiveData<Boolean> offlineLive;
   private final SharedPreferences sharedPrefs;
+  // FORK (offline inventory): kept as a field, SharedPreferences only weakly references listeners
+  private final OnSharedPreferenceChangeListener offlineModeListener;
   private final Resources resources;
   private boolean isSearchVisible;
   private final boolean debug;
@@ -69,9 +73,18 @@ public class BaseViewModel extends AndroidViewModel {
   public BaseViewModel(@NonNull Application application) {
     super(application);
     eventHandler = new EventHandler();
-    offlineLive = new MutableLiveData<>(false);
 
     sharedPrefs = PreferenceManager.getDefaultSharedPreferences(application);
+    // FORK (offline inventory): start from the remembered state instead of assuming online, and
+    // follow it while this screen is open — the offline banner is bound to this
+    offlineLive = new MutableLiveData<>(OfflineModeUtil.isEnabled(sharedPrefs));
+    offlineModeListener = (prefs, key) -> {
+      if (Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE.equals(key)) {
+        setOfflineLive(OfflineModeUtil.isEnabled(prefs));
+      }
+    };
+    sharedPrefs.registerOnSharedPreferenceChangeListener(offlineModeListener);
+
     debug = PrefsUtil.isDebuggingEnabled(sharedPrefs);
     isSearchVisible = false;
 
@@ -345,5 +358,11 @@ public class BaseViewModel extends AndroidViewModel {
 
   public void setIsSearchVisible(boolean visible) {
     isSearchVisible = visible;
+  }
+
+  @Override
+  protected void onCleared() {
+    sharedPrefs.unregisterOnSharedPreferenceChangeListener(offlineModeListener);
+    super.onCleared();
   }
 }

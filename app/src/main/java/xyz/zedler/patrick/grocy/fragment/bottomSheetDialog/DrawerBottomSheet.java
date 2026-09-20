@@ -38,7 +38,6 @@ import androidx.navigation.NavDirections;
 import androidx.navigation.NavOptions;
 import androidx.preference.PreferenceManager;
 import com.google.android.material.button.MaterialButton;
-import xyz.zedler.patrick.grocy.Constants;
 import xyz.zedler.patrick.grocy.Constants.PREF;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.activity.MainActivity;
@@ -57,7 +56,9 @@ import xyz.zedler.patrick.grocy.fragment.ShoppingListFragment;
 import xyz.zedler.patrick.grocy.fragment.StockOverviewFragment;
 import xyz.zedler.patrick.grocy.fragment.TasksFragment;
 import xyz.zedler.patrick.grocy.fragment.TransferFragment;
+import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.util.ClickUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.ResUtil;
 import xyz.zedler.patrick.grocy.util.UiUtil;
 import xyz.zedler.patrick.grocy.util.ViewUtil;
@@ -124,10 +125,7 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
     binding.linearDrawerOfflineMode.setBackground(
         ViewUtil.getRippleBgListItemSurface(requireContext())
     );
-    binding.switchDrawerOfflineMode.setChecked(sharedPrefs.getBoolean(
-        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    ));
+    binding.switchDrawerOfflineMode.setChecked(OfflineModeUtil.isEnabled(sharedPrefs));
     binding.linearDrawerSettings.setBackground(
         ViewUtil.getRippleBgListItemSurface(requireContext())
     );
@@ -310,17 +308,38 @@ public class DrawerBottomSheet extends BaseBottomSheetDialogFragment implements 
   /**
    * FORK (offline inventory): flips the offline mode and keeps the sheet open, so the switch
    * shows the new state right away.
+   *
+   * <p>Going offline is taken at face value. Going back online is a request, not an order: the
+   * server is asked first, and if it does not answer the switch stays on rather than letting the
+   * user believe bookings are being sent.
    */
   private void toggleOfflineMode() {
-    boolean enabled = !sharedPrefs.getBoolean(
-        Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    );
-    sharedPrefs.edit().putBoolean(Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE, enabled).apply();
-    binding.switchDrawerOfflineMode.setChecked(enabled);
-    activity.showSnackbar(
-        enabled ? R.string.msg_offline_mode_on : R.string.msg_offline_mode_off, false
-    );
+    if (!OfflineModeUtil.isEnabled(sharedPrefs)) {
+      OfflineModeUtil.setByUser(sharedPrefs, true);
+      binding.switchDrawerOfflineMode.setChecked(true);
+      activity.showSnackbar(R.string.msg_offline_mode_on, false);
+      return;
+    }
+    binding.linearDrawerOfflineMode.setEnabled(false);
+    activity.showSnackbar(R.string.msg_offline_mode_checking, false);
+    DownloadHelper dlHelper = new DownloadHelper(activity, TAG);
+    dlHelper.checkServerReachable(reachable -> {
+      if (reachable) {
+        OfflineModeUtil.setByUser(sharedPrefs, false);
+      } else {
+        // keep it on, but as a detected state so it clears itself once the server is back
+        OfflineModeUtil.markDetected(sharedPrefs);
+      }
+      if (binding != null) {
+        binding.switchDrawerOfflineMode.setChecked(!reachable);
+        binding.linearDrawerOfflineMode.setEnabled(true);
+      }
+      activity.showSnackbar(
+          reachable ? R.string.msg_offline_mode_off : R.string.msg_offline_mode_unreachable,
+          false
+      );
+      dlHelper.destroy();
+    });
   }
 
   private void navigateCustom(NavDirections directions) {

@@ -63,6 +63,7 @@ import xyz.zedler.patrick.grocy.model.ShoppingList;
 import xyz.zedler.patrick.grocy.repository.MainRepository;
 import xyz.zedler.patrick.grocy.util.ConfigUtil;
 import xyz.zedler.patrick.grocy.util.NumUtil;
+import xyz.zedler.patrick.grocy.util.OfflineModeUtil;
 import xyz.zedler.patrick.grocy.util.PrefsUtil;
 import xyz.zedler.patrick.grocy.util.ReminderUtil;
 import xyz.zedler.patrick.grocy.util.SortUtil;
@@ -347,15 +348,12 @@ public class SettingsViewModel extends BaseViewModel {
 
   // FORK (offline inventory)
   public boolean getOfflineModeEnabled() {
-    return sharedPrefs.getBoolean(
-        BEHAVIOR.OFFLINE_MODE,
-        Constants.SETTINGS_DEFAULT.BEHAVIOR.OFFLINE_MODE
-    );
+    return OfflineModeUtil.isEnabled(sharedPrefs);
   }
 
   public void setOfflineModeEnabled(boolean enabled) {
-    sharedPrefs.edit()
-        .putBoolean(Constants.SETTINGS.BEHAVIOR.OFFLINE_MODE, enabled).apply();
+    // a choice made here is deliberate, so it must not be cleared by the next successful request
+    OfflineModeUtil.setByUser(sharedPrefs, enabled);
   }
 
   public boolean getKeepScreenOnRecipesEnabled() {

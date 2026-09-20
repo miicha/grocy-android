@@ -353,6 +353,8 @@
   <string name="msg_offline_count_stored">Saved on the device</string>
   <string name="msg_offline_mode_on">Offline mode on — bookings are saved on the device</string>
   <string name="msg_offline_mode_off">Offline mode off</string>
+  <string name="msg_offline_mode_checking">Checking connection …</string>
+  <string name="msg_offline_mode_unreachable">Server cannot be reached — staying offline</string>
   <!-- %1$s is the number of locations this product is stored at -->
   <string name="msg_inventory_multiple_locations">This product is stored at %1$s locations. An inventory sets the total amount across all of them — use consume for a correction at one location.</string>
   <string name="msg_offline_barcode_discarded">Barcode not saved — no server connection</string>
